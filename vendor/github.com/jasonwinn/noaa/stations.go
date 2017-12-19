@@ -4,12 +4,15 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 )
 
 const (
+	dotConfigDir   = ".config/weather-bar"
 	stationsDir    = "noaa_data"
 	stationsFile   = "noaa_stations.xml"
 	stationListUrl = "http://w1.weather.gov/xml/current_obs/index.xml"
@@ -32,6 +35,13 @@ type Station struct {
 // This an expensive call, as the file is over one megabyte.
 // It is best to only call this manually when you need a new list.
 func RefreshNOAAStationList() ([]byte, error) {
+
+	// Get our current UID, used to locate our station list cache
+	uid, err := user.Current()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	resp, err := http.Get(stationListUrl)
 
 	// Something is wrong with the remote API. Panic
@@ -43,17 +53,17 @@ func RefreshNOAAStationList() ([]byte, error) {
 	defer resp.Body.Close()
 
 	// Remove existing XML File
-	os.Remove(filepath.Join(stationsDir, stationsFile))
+	os.Remove(filepath.Join(uid.HomeDir, dotConfigDir, stationsDir, stationsFile))
 
 	// Create Directories if necessary
-	err = os.MkdirAll(filepath.Join(stationsDir), 0777)
+	err = os.MkdirAll(filepath.Join(uid.HomeDir, dotConfigDir, stationsDir), 0777)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
 	}
 
-	// Create Stations FIle
-	file, err := os.Create(filepath.Join(stationsDir, stationsFile))
+	// Create Stations File
+	file, err := os.Create(filepath.Join(uid.HomeDir, dotConfigDir, stationsDir, stationsFile))
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -71,8 +81,14 @@ func RefreshNOAAStationList() ([]byte, error) {
 func Stations() *StationList {
 	var body []byte
 
+	// Get our current UID, used to locate our station list cache
+	uid, err := user.Current()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	// Check if there is a local cached of the stations
-	file, err := ioutil.ReadFile(filepath.Join(stationsDir, stationsFile))
+	file, err := ioutil.ReadFile(filepath.Join(uid.HomeDir, dotConfigDir, stationsDir, stationsFile))
 
 	if err != nil {
 		// Fetch station list from API if we have no local file

@@ -1,0 +1,26 @@
+[weather]
+; By default, noaa-weather-bar will attempt to geolocate you and determine the nearest NOAA weather station
+; based on this location.  If the geolocation is failing or inaccurate, you can override it by providing a
+; latitude and longitude (in +/- DD.dddddd format) or a NOAA station ID here.
+; 
+; To hardcode a latitude/longitude, uncomment the following:
+; latitude = 39.17851
+; longitude = -96.63765
+;
+; To hardcode a specific NOAA weather station, uncomment the following:
+; station = "KMHK"
+
+
+[format]
+; weather-format formats the line as displayed in your bar.
+;
+; Available tokens:
+; ------------------------
+; %temperature-fahrenheit%   -   Temperature in degrees Fahrenheit
+; %temperature-celcius%      -   Temperature in degrees Celcius
+; %barometer%                -   Barometer in millibar
+; %wind-speed%               -   Wind speed in miles/hour
+; %wind-direction%           -   Wind direction in degrees
+; %wind-cardinal%	         -   Wind direction in cardinals (e.g. N, SW, WNW, etc.)
+; %station-id%               -   NOAA station ID (e.g. KMHK)
+weather-format = " %station-id%  %temperature-fahrenheit%°F  %barometer% mbar  %wind-cardinal% @ %wind-speed% MPH"

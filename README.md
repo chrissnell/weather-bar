@@ -5,7 +5,7 @@
 
 # How to use
 
-1. Download a [release](https://github.com/chrissnell/weather-bar/releases) or compile your own binary and put the binary in your `$PATH` (e.g. `/usr/local/bin/weather-bar`)
+1. Download a [release](https://github.com/chrissnell/weather-bar/releases), install the [AUR package](https://aur.archlinux.org/packages/weather-bar/), or compile your own binary and put the binary in your `$PATH` (e.g. `/usr/local/bin/weather-bar`)
 2. Using the [example config file found here](https://github.com/chrissnell/weather-bar/blob/master/example/config), create a config file in your `$XDG_CONFIG_HOME` directory (default config file is `${HOME}/.config/weather-bar/config`) and edit if you desire.  
 3. Edit your bar config, as described below. 
 

@@ -14,7 +14,7 @@ Add a new module to your Polybar config that uses Polybar's script module to run
 ## Lemonbar
 Simply pipe the output of weather-bar to lemonbar:   `weather-bar | lemonbar`.  I recommend the [patched version](https://github.com/krypt-n/bar) that supports Xft fonts so that you can have some sweet icons.
 
-# Getting better and more frequent weather metrics
+# Weather Underground support
 By default, weather-bar fetches weather conditions from [NOAA](http://www.weather.gov/) but if you [sign up for a free API key](https://www.wunderground.com/api), weather-bar can fetch metrics from the Weather Underground, which gives you much more frequent weather updates (5 minutes vs. 1 hour for NOAA) and the option to pull weather from the large network of personal weather stations (PWS) that send data to WU.
 
 # Fonts

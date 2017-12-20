@@ -1,7 +1,7 @@
 ![](http://island.nu/github/weather-bar/weather-bar.gif)
 
 # weather-bar
-**weather-bar** pulls weather reports from NOAA or Weather Underground and displays them in a desktop bar, like [polybar](https://github.com/jaagr/polybar) or lemonbar.  weather-bar supports geolocation using freegeoip.net and will automatically update your location if you put your laptop to sleep and wake it up in a new location.  Much like polybar and lemonbar, weather-bar is **customizable**.  Using tokens in the config file, you can tweak the display to your liking.
+**weather-bar** pulls weather reports from NOAA or Weather Underground and displays them in a desktop bar, like [polybar](https://github.com/jaagr/polybar) or lemonbar.  weather-bar supports geolocation and will automatically update your location if you put your laptop to sleep and wake it up in a new location.  Much like polybar and lemonbar, weather-bar is **customizable**.  Using tokens in the config file, you can tweak the display to your liking.
 
 # How to use
 

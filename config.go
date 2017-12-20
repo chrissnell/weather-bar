@@ -17,6 +17,7 @@ type WeatherConfig struct {
 	Latitude  string `ini:"latitude"`
 	Longitude string `ini:"longitude"`
 	Station   string `ini:"station"`
+	WUAPIKey  string `ini:"weather-underground-api-key"`
 }
 
 // FormatConfig holds our output formatting configuration

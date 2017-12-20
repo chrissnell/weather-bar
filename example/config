@@ -1,4 +1,12 @@
 [weather]
+; If you have a Weather Underground API key, provide it here.  When you provide an API key here,
+; weather-bar will use the WU API instead of NOAA, which enables much more weather detail and more
+; frequent weather updates.
+;
+; If you don't yet have an API key, you can sign up for their **free** "Stratus" plan, which gives
+; you 500 queries per day.   https://www.wunderground.com/api
+; weather-underground-api-key = "YOUR-API-KEY-HERE"
+
 ; By default, noaa-weather-bar will attempt to geolocate you and determine the nearest NOAA weather station
 ; based on this location.  If the geolocation is failing or inaccurate, you can override it by providing a
 ; latitude and longitude (in +/- DD.dddddd format) or a NOAA station ID here.
@@ -7,8 +15,9 @@
 ; latitude = 39.17851
 ; longitude = -96.63765
 ;
-; To hardcode a specific NOAA weather station, uncomment the following:
+; To hardcode a specific ICAO or WU PWS weather station, uncomment the following:
 ; station = "KMHK"
+; station = "KTXALAMO5"
 
 
 [format]

@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -39,7 +37,7 @@ type WeatherBar struct {
 	pointMutex          sync.RWMutex
 	station             *noaa.Station
 	stationMutex        sync.RWMutex
-	wxObsChan           chan WeatherObservation
+	wxObsChan           chan CurrentObservation
 	sleepTickerChan     <-chan time.Time
 	wxUpdateTickerChan  <-chan time.Time
 	wxUpdateChan        chan struct{}
@@ -110,7 +108,7 @@ func main() {
 
 	w.wxUpdateChan = make(chan struct{}, 1)
 	w.geoUpdateChan = make(chan struct{}, 1)
-	w.wxObsChan = make(chan WeatherObservation, 1)
+	w.wxObsChan = make(chan CurrentObservation, 1)
 
 	w.wxUpdateTickerChan = time.NewTicker(noaaUpdateInterval).C
 	w.geoUpdateTickerChan = time.NewTicker(geoUpdateInterval).C
@@ -153,7 +151,7 @@ func (w *WeatherBar) weatherReporter(ctx context.Context) {
 
 			output = regTempF.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", obs.Temperature))
 			output = regTempC.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", tempC))
-			output = regBar.ReplaceAllLiteralString(output, fmt.Sprintf("%.2f", obs.BarometerMb))
+			output = regBar.ReplaceAllLiteralString(output, fmt.Sprintf("%.2f", obs.Barometer))
 			output = regWindS.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindSpeed))
 			output = regWindD.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindDir))
 			output = regWindC.ReplaceAllLiteralString(output, cardDirection)
@@ -169,32 +167,9 @@ func (w *WeatherBar) weatherReporter(ctx context.Context) {
 	}
 }
 
-func (w *WeatherBar) getLocation() (err error) {
-	var c = &http.Client{Timeout: 10 * time.Second}
-	r, err := c.Get(freeGeoIPURL)
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-
-	w.locMutex.Lock()
-	err = json.NewDecoder(r.Body).Decode(&w.loc)
-	w.locMutex.Unlock()
-	if err != nil {
-		return err
-	}
-
-	w.locMutex.RLock()
-	w.pointMutex.Lock()
-	w.point.Latitude = w.loc.Latitude
-	w.point.Longitude = w.loc.Longitude
-	w.pointMutex.Unlock()
-	w.locMutex.RUnlock()
-
-	return nil
-}
-
 func (w *WeatherBar) weatherWatcher(ctx context.Context) {
+	var err error
+
 	for {
 		select {
 		case <-w.wxUpdateTickerChan:
@@ -218,31 +193,33 @@ func (w *WeatherBar) weatherWatcher(ctx context.Context) {
 				}
 			}
 
-			// Fetch current conditions
 			w.stationMutex.RLock()
-			conditions := w.station.CurrentConditions()
+			// If a Weather Underground API key has been set in the config, use that
+			// service to fetch the weather conditions.  Otherwise, use NOAA.
+			if w.cfg.Weather.WUAPIKey != "" {
+
+				// WU supports two types of stations: ICAO (official government-run stations)
+				// and PWS (personal weather stations, typically run by individuals, businesses, etc.)
+				// If our station ID is 4 bytes long, it's almost certainly an ICAO station, so
+				// we pass it to our getter as such.  Otherwise, we pass the station ID as a PWS
+				// ID.
+				if len(w.station.Id) == 4 {
+					err = w.getCurrentConditionsFromWU(w.station.Id, "")
+				} else {
+					err = w.getCurrentConditionsFromWU("", w.station.Id)
+				}
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+			} else {
+				err := w.getCurrentConditionsFromNOAA(w.station.Id)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+			}
 			w.stationMutex.RUnlock()
-
-			if *w.debug {
-				log.Printf("CONDITIONS: %+v\n", conditions)
-			}
-
-			// If we didn't get back a StationID, something went wrong
-			// with weather fetching so don't bother sending a new observation.
-			if conditions.StationId == "" {
-				log.Println("unable to fetch observation for", w.station.Id)
-				continue
-			}
-
-			obs := WeatherObservation{
-				StationID:   conditions.StationId,
-				Temperature: conditions.TemperatureF,
-				BarometerMb: conditions.PressureMB,
-				WindSpeed:   conditions.WindMph,
-				WindDir:     conditions.WindDegrees,
-			}
-
-			w.wxObsChan <- obs
 
 		case <-ctx.Done():
 			log.Println("Termination request recieved.  Cancelling weather watcher.")
@@ -261,14 +238,18 @@ func (w *WeatherBar) locationWatcher(ctx context.Context) {
 			log.Printf("Weather station is hardcoded (%v).  Disabling geolocation.\n", w.cfg.Weather.Station)
 		}
 		w.stationMutex.Lock()
-		w.station.Id = w.cfg.Weather.Station
+		w.station = &noaa.Station{Id: w.cfg.Weather.Station}
 		w.stationMutex.Unlock()
+
+		// Since we're just starting up, force a weather update.
+		w.wxUpdateChan <- struct{}{}
+
 		return
 	}
 
 	// Force a geolocation update.  We'll need a starting point in order to monitor
 	// for location changes.
-	err := w.getLocation()
+	err := w.getLocationFromFreeGEOIP()
 	if err != nil {
 		log.Fatalln("could not get location:", err)
 	}
@@ -284,13 +265,14 @@ func (w *WeatherBar) locationWatcher(ctx context.Context) {
 	// Find our nearest weather station and update our station object
 	w.pointMutex.RLock()
 	w.stationMutex.Lock()
+
 	w.station = w.point.NearestStation()
-	w.stationMutex.Unlock()
-	w.pointMutex.RUnlock()
 	if *w.debug {
 		log.Println("STATION:", w.station.Id)
 	}
 
+	w.stationMutex.Unlock()
+	w.pointMutex.RUnlock()
 	// Since we're just starting up, force a weather update.
 	w.wxUpdateChan <- struct{}{}
 
@@ -306,12 +288,12 @@ func (w *WeatherBar) locationWatcher(ctx context.Context) {
 				// Our geolocation update timer has ticked, so we'll run a geolocation
 				// update and see if the location has changed.
 				// Kick off a geolocation update...
-				err = w.getLocation()
+				err = w.getLocationFromFreeGEOIP()
 				if err != nil {
 					// We failed to geolocate.  Sleep 15 seconds and give it another shot.
 					log.Println("error fetching location:", err)
 					time.Sleep(15 * time.Second)
-					err = w.getLocation()
+					err = w.getLocationFromFreeGEOIP()
 					if err != nil {
 						// Geolcoation failed a second time so we'll just wait for the next
 						// scheduled geolocation update timer to fire

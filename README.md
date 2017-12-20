@@ -22,3 +22,6 @@ By default, weather-bar uses [freegeoip.net](https://freegeoip.net) to geolocate
 
 ## Fonts
 weather-bar looks best with the Font Awesome icons from [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts).  I used the "Sauce Code Pro" for the screenshot above.
+
+## License
+See [LICENSE](https://github.com/chrissnell/weather-bar/blob/master/LICENSE)

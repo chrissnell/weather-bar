@@ -135,6 +135,10 @@ func (w *WeatherBar) getCurrentConditionsFromWU(icao string, pws string) error {
 		log.Println("error parsing current conditions:", err)
 	}
 
+	if *w.debug {
+		log.Printf("Current observation: %+v\n", cond.CurrentObservation)
+	}
+
 	w.wxObsChan <- cond.CurrentObservation
 	return nil
 }

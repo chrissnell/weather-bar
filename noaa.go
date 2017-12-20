@@ -14,10 +14,6 @@ func (w *WeatherBar) getCurrentConditionsFromNOAA(icao string) error {
 	conditions := w.station.CurrentConditions()
 	w.stationMutex.RUnlock()
 
-	if *w.debug {
-		log.Printf("CONDITIONS: %+v\n", conditions)
-	}
-
 	// If we didn't get back a StationID, something went wrong
 	// with weather fetching so don't bother sending a new observation.
 	if conditions.StationId == "" {
@@ -30,6 +26,10 @@ func (w *WeatherBar) getCurrentConditionsFromNOAA(icao string) error {
 		Barometer:   conditions.PressureMB,
 		WindSpeed:   conditions.WindMph,
 		WindDir:     conditions.WindDegrees,
+	}
+
+	if *w.debug {
+		log.Printf("Current observation: %+v\n", obs)
 	}
 
 	w.wxObsChan <- obs

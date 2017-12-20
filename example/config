@@ -28,8 +28,24 @@
 ; %temperature-fahrenheit%   -   Temperature in degrees Fahrenheit
 ; %temperature-celcius%      -   Temperature in degrees Celcius
 ; %barometer%                -   Barometer in millibar
-; %wind-speed%               -   Wind speed in miles/hour
+; %wind-speed-mph%           -   Wind speed in miles/hour
+; %wind-speed-kph%           -   Wind speed in kilometers/hour
 ; %wind-direction%           -   Wind direction in degrees
 ; %wind-cardinal%	         -   Wind direction in cardinals (e.g. N, SW, WNW, etc.)
 ; %station-id%               -   NOAA station ID (e.g. KMHK)
-weather-format = " %station-id%  %temperature-fahrenheit%°F  %barometer% mbar  %wind-cardinal% @ %wind-speed% MPH"
+;
+; The folowing tokens are also available if you have provided your Weather Underground API
+; key above (they will not work for NOAA reports):
+; ----------------------------------------------------------------------------------------
+; %weather%                  -   Current general weather conditions (e.g. "Partly Cloudy")
+; %wind-gust-mph%            -   Maximum wind gust in miles/hour
+; %wind-gust-kph%            -   Maximum wind gust in kilometers/hour
+; %humidity%                 -   Humidity in %
+; %wind-chill-fahrenheit%    -   Wind chill in degrees Fahrenheit
+; %wind-chill-celcius%       -   Wind chill in degrees Celcius
+; %heat-index-fahrenheit%    -   Heat index in degrees Fahrenheit
+; %heat-index-celcius%       -   Heat index in degrees Celcius
+; %rain-today-inches%        -   Rainfall today in inches
+; %rain-last-hour-inches%    -   Rainfall in the last hour in inches
+
+weather-format = " %station-id%  %temperature-fahrenheit%°F  %barometer% mbar  %wind-cardinal% @ %wind-speed-mph% MPH"

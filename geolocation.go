@@ -32,6 +32,8 @@ func (w *WeatherBar) getLocationFromFreeGEOIP() (err error) {
 	return nil
 }
 
+// Not currently used.  We're using our NOAA database and Haversine distance to
+// find the nearest station instead.
 func (w *WeatherBar) findNearestICAOStationFromWU() (icao string, err error) {
 	var geo GeoLookup
 

@@ -24,8 +24,10 @@ const geoUpdateInterval = 24 * time.Hour
 
 // Use a 1-hour update interval for NOAA weather.  NOAA updates their conditions hourly,
 // at 45 minutes after the hour.  There is no point in fetching more than once an hour.
-// TO DO: add support for Weather Underground API.
 const noaaUpdateInterval = 1 * time.Hour
+
+// Use a 5-minute interval for Weather Underground updates.
+const wuUpdateInterval = 5 * time.Minute
 
 // WeatherBar holds our state and useful channels
 type WeatherBar struct {
@@ -110,7 +112,13 @@ func main() {
 	w.geoUpdateChan = make(chan struct{}, 1)
 	w.wxObsChan = make(chan CurrentObservation, 1)
 
-	w.wxUpdateTickerChan = time.NewTicker(noaaUpdateInterval).C
+	// If a WU API key was provided, use a shorter update interval
+	if w.cfg.Weather.WUAPIKey != "" {
+		w.wxUpdateTickerChan = time.NewTicker(wuUpdateInterval).C
+	} else {
+		w.wxUpdateTickerChan = time.NewTicker(noaaUpdateInterval).C
+	}
+
 	w.geoUpdateTickerChan = time.NewTicker(geoUpdateInterval).C
 
 	go w.weatherWatcher(ctx)
@@ -134,12 +142,21 @@ func (w *WeatherBar) weatherReporter(ctx context.Context) {
 	regTempF := regexp.MustCompile("%temperature-fahrenheit%")
 	regTempC := regexp.MustCompile("%temperature-celcius%")
 	regBar := regexp.MustCompile("%barometer%")
-	regWindS := regexp.MustCompile("%wind-speed%")
-	regWindD := regexp.MustCompile("%wind-direction%")
-	regWindC := regexp.MustCompile("%wind-cardinal%")
+	regWindSpeedMph := regexp.MustCompile("%wind-speed-mph%")
+	regWindSpeedKph := regexp.MustCompile("%wind-speed-kph%")
+	regWindDirection := regexp.MustCompile("%wind-direction%")
+	regWindCardinal := regexp.MustCompile("%wind-cardinal%")
+	regWindGustMph := regexp.MustCompile("%wind-gust-mph%")
+	regWindGustKph := regexp.MustCompile("%wind-gust-kph%")
+	regWeather := regexp.MustCompile("%weather%")
+	regHumidity := regexp.MustCompile("%humidity%")
+	regWindChillF := regexp.MustCompile("%wind-chill-fahrenheit%")
+	regHeatIndexF := regexp.MustCompile("%heat-index-fahrenheit%")
+	regWindChillC := regexp.MustCompile("%wind-chill-celcius%")
+	regHeatIndexC := regexp.MustCompile("%heat-index-celcius%")
 	regStationID := regexp.MustCompile("%station-id%")
-
-	output = w.cfg.Format.WxFormat
+	regRainTodayInches := regexp.MustCompile("%rain-today-inches%")
+	regRain1HourInches := regexp.MustCompile("%rain-last-hour-inches%")
 
 	for {
 		select {
@@ -148,13 +165,30 @@ func (w *WeatherBar) weatherReporter(ctx context.Context) {
 			cardDirection := cardDirections[cardIndex%16]
 
 			tempC := (obs.Temperature - 32) * (5 / 9)
+			windChillC := (obs.WindChill - 32) * (5 / 9)
+			heatIndexC := (obs.HeatIndex - 32) * (5 / 9)
+			windSpeedKph := obs.WindSpeed * 1.60934
+			windGustKph := obs.WindGust * 1.60934
 
+			output = w.cfg.Format.WxFormat
+
+			output = regWeather.ReplaceAllLiteralString(output, obs.Weather)
 			output = regTempF.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", obs.Temperature))
 			output = regTempC.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", tempC))
+			output = regHumidity.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.Humidity))
 			output = regBar.ReplaceAllLiteralString(output, fmt.Sprintf("%.2f", obs.Barometer))
-			output = regWindS.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindSpeed))
-			output = regWindD.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindDir))
-			output = regWindC.ReplaceAllLiteralString(output, cardDirection)
+			output = regWindSpeedMph.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindSpeed))
+			output = regWindSpeedKph.ReplaceAllLiteralString(output, fmt.Sprintf("%.0f", windSpeedKph))
+			output = regWindDirection.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindDir))
+			output = regWindCardinal.ReplaceAllLiteralString(output, cardDirection)
+			output = regWindGustMph.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.WindGust))
+			output = regWindGustKph.ReplaceAllLiteralString(output, fmt.Sprintf("%.0f", windGustKph))
+			output = regWindChillF.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", obs.WindChill))
+			output = regHeatIndexF.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", obs.HeatIndex))
+			output = regWindChillC.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", windChillC))
+			output = regHeatIndexC.ReplaceAllLiteralString(output, fmt.Sprintf("%.1f", heatIndexC))
+			output = regRainTodayInches.ReplaceAllLiteralString(output, fmt.Sprintf("%.2f", obs.RainToday))
+			output = regRain1HourInches.ReplaceAllLiteralString(output, fmt.Sprintf("%.2f", obs.Rain1Hour))
 			output = regStationID.ReplaceAllLiteralString(output, fmt.Sprintf("%v", obs.StationID))
 
 			fmt.Println(output)
@@ -258,7 +292,7 @@ func (w *WeatherBar) locationWatcher(ctx context.Context) {
 	w.locMutex.RLock()
 	w.prevLoc = w.loc
 	if *w.debug {
-		log.Printf("LOCATION: %+v\n", w.loc)
+		log.Printf("Detected: %+v\n", w.loc)
 	}
 	w.locMutex.RUnlock()
 
@@ -268,7 +302,7 @@ func (w *WeatherBar) locationWatcher(ctx context.Context) {
 
 	w.station = w.point.NearestStation()
 	if *w.debug {
-		log.Println("STATION:", w.station.Id)
+		log.Println("Nearest ICAO station:", w.station.Id)
 	}
 
 	w.stationMutex.Unlock()

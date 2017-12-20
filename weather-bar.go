@@ -83,7 +83,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	cfgFile := flag.String("config", uid.HomeDir+"/.config/noaa-weather-bar/config", "Path to noaa-weather-bar config file (default: $HOME/.config/noaa-weather-bar/config)")
+	cfgFile := flag.String("config", uid.HomeDir+"/.config/weather-bar/config", "Path to noaa-weather-bar config file (default: $HOME/.config/noaa-weather-bar/config)")
 	w.debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 

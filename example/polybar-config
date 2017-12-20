@@ -1,0 +1,4 @@
+[module/weather]
+type = custom/script
+exec = weather-bar
+tail = true

@@ -2,6 +2,7 @@ package noaa
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -57,6 +58,7 @@ func (station *Station) CurrentConditions() *CurrentCondition {
 	// Manually parse the time
 	// encoding/xml doesn't properly encode to a time.Time type
 	c.ObservationTime, _ = time.Parse(conditionTime, c.StringObservationTime)
+	fmt.Println(c.ObservationTime)
 
 	return c
 }

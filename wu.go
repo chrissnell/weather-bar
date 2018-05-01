@@ -83,7 +83,7 @@ type CurrentObservation struct {
 	HeatIndex    float64
 	WindDir      float64 `json:"wind_degrees"`
 	WindSpeed    float64 `json:"wind_mph"`
-	WindGust     float64 `json:"wind_gust_mph"`
+	WindGust     string  `json:"wind_gust_mph"`
 	BarometerStr string  `json:"pressure_mb"`
 	Barometer    float64
 	RainTodayStr string `json:"precip_today_in"`

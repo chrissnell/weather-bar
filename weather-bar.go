@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -168,7 +169,8 @@ func (w *WeatherBar) weatherReporter(ctx context.Context) {
 			windChillC := (obs.WindChill - 32) * (5 / 9)
 			heatIndexC := (obs.HeatIndex - 32) * (5 / 9)
 			windSpeedKph := obs.WindSpeed * 1.60934
-			windGustKph := obs.WindGust * 1.60934
+			windGustFloat, _ := strconv.ParseFloat(obs.WindGust, 64)
+			windGustKph := windGustFloat * 1.60934
 
 			output = w.cfg.Format.WxFormat
 

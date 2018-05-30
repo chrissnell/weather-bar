@@ -15,7 +15,9 @@ Add a new module to your Polybar config that uses Polybar's script module to run
 Simply pipe the output of weather-bar to lemonbar:   `weather-bar | lemonbar`.  I recommend the [patched version](https://github.com/krypt-n/bar) that supports Xft fonts so that you can have some sweet icons.
 
 ## Weather Underground support
-By default, weather-bar fetches weather conditions from [NOAA](http://www.weather.gov/) but if you [sign up for a free API key](https://www.wunderground.com/api), weather-bar can fetch metrics from the Weather Underground, which gives you much more frequent weather updates (5 minutes vs. 1 hour for NOAA) and the option to pull weather from the large network of personal weather stations (PWS) that send data to WU.
+Unfortunately, Weather Underground no longer provides free keys, so you'll need one of their paid accounts to use this feature.  Jerks.
+~~By default, weather-bar fetches weather conditions from [NOAA](http://www.weather.gov/) but if you [sign up for a free API key](https://www.wunderground.com/api), weather-bar can fetch metrics from the Weather Underground, which gives you much more frequent weather updates (5 minutes vs. 1 hour for NOAA) and the option to pull weather from the large network of personal weather stations (PWS) that send data to WU.~~
+
 
 ## Geolocation
 By default, weather-bar uses [freegeoip.net](https://freegeoip.net) to geolocate your computer and computes the [Haversine distance](https://en.wikipedia.org/wiki/Haversine_formula) to nearby NOAA weather stations to determine the closest one.  If  the geolocation is inaccurate or if you don't wish to geolocate, you can specify a specific NOAA station by its [ICAO code](https://en.wikipedia.org/wiki/ICAO_airport_code) or a Weather Underground Personal Weather Station (PWS) by its ID.  You can also specify a particular latitude and longitude and weather-bar will find the nearest NOAA station automatically.

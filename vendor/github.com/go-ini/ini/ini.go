@@ -16,122 +16,71 @@
 package ini
 
 import (
-	"bytes"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"runtime"
+	"strings"
 )
 
 const (
-	// Name for default section. You can use this constant or the string literal.
-	// In most of cases, an empty string is all you need to access the section.
-	DEFAULT_SECTION = "DEFAULT"
-
 	// Maximum allowed depth when recursively substituing variable names.
-	_DEPTH_VALUES = 99
-	_VERSION      = "1.36.0"
+	depthValues = 99
 )
 
-// Version returns current package version literal.
-func Version() string {
-	return _VERSION
-}
-
 var (
-	// Delimiter to determine or compose a new line.
-	// This variable will be changed to "\r\n" automatically on Windows
-	// at package init time.
+	// DefaultSection is the name of default section. You can use this var or the string literal.
+	// In most of cases, an empty string is all you need to access the section.
+	DefaultSection = "DEFAULT"
+
+	// LineBreak is the delimiter to determine or compose a new line.
+	// This variable will be changed to "\r\n" automatically on Windows at package init time.
 	LineBreak = "\n"
 
 	// Variable regexp pattern: %(variable)s
-	varPattern = regexp.MustCompile(`%\(([^\)]+)\)s`)
+	varPattern = regexp.MustCompile(`%\(([^)]+)\)s`)
 
-	// Indicate whether to align "=" sign with spaces to produce pretty output
-	// or reduce all possible spaces for compact format.
-	PrettyFormat = true
-
-	// Place spaces around "=" sign even when PrettyFormat is false
-	PrettyEqual = false
-
-	// Explicitly write DEFAULT section header
+	// DefaultHeader explicitly writes default section header.
 	DefaultHeader = false
 
-	// Indicate whether to put a line between sections
+	// PrettySection indicates whether to put a line between sections.
 	PrettySection = true
+	// PrettyFormat indicates whether to align "=" sign with spaces to produce pretty output
+	// or reduce all possible spaces for compact format.
+	PrettyFormat = true
+	// PrettyEqual places spaces around "=" sign even when PrettyFormat is false.
+	PrettyEqual = false
+	// DefaultFormatLeft places custom spaces on the left when PrettyFormat and PrettyEqual are both disabled.
+	DefaultFormatLeft = ""
+	// DefaultFormatRight places custom spaces on the right when PrettyFormat and PrettyEqual are both disabled.
+	DefaultFormatRight = ""
 )
 
+var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
+
 func init() {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && !inTest {
 		LineBreak = "\r\n"
 	}
 }
 
-func inSlice(str string, s []string) bool {
-	for _, v := range s {
-		if str == v {
-			return true
-		}
-	}
-	return false
-}
-
-// dataSource is an interface that returns object which can be read and closed.
-type dataSource interface {
-	ReadCloser() (io.ReadCloser, error)
-}
-
-// sourceFile represents an object that contains content on the local file system.
-type sourceFile struct {
-	name string
-}
-
-func (s sourceFile) ReadCloser() (_ io.ReadCloser, err error) {
-	return os.Open(s.name)
-}
-
-// sourceData represents an object that contains content in memory.
-type sourceData struct {
-	data []byte
-}
-
-func (s *sourceData) ReadCloser() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewReader(s.data)), nil
-}
-
-// sourceReadCloser represents an input stream with Close method.
-type sourceReadCloser struct {
-	reader io.ReadCloser
-}
-
-func (s *sourceReadCloser) ReadCloser() (io.ReadCloser, error) {
-	return s.reader, nil
-}
-
-func parseDataSource(source interface{}) (dataSource, error) {
-	switch s := source.(type) {
-	case string:
-		return sourceFile{s}, nil
-	case []byte:
-		return &sourceData{s}, nil
-	case io.ReadCloser:
-		return &sourceReadCloser{s}, nil
-	default:
-		return nil, fmt.Errorf("error parsing data source: unknown type '%s'", s)
-	}
-}
-
+// LoadOptions contains all customized options used for load data source(s).
 type LoadOptions struct {
 	// Loose indicates whether the parser should ignore nonexistent files or return error.
 	Loose bool
 	// Insensitive indicates whether the parser forces all section and key names to lowercase.
 	Insensitive bool
+	// InsensitiveSections indicates whether the parser forces all section to lowercase.
+	InsensitiveSections bool
+	// InsensitiveKeys indicates whether the parser forces all key names to lowercase.
+	InsensitiveKeys bool
 	// IgnoreContinuation indicates whether to ignore continuation lines while parsing.
 	IgnoreContinuation bool
 	// IgnoreInlineComment indicates whether to ignore comments at the end of value and treat it as part of value.
 	IgnoreInlineComment bool
+	// SkipUnrecognizableLines indicates whether to skip unrecognizable lines that do not conform to key/value pairs.
+	SkipUnrecognizableLines bool
+	// ShortCircuit indicates whether to ignore other configuration sources after loaded the first available configuration source.
+	ShortCircuit bool
 	// AllowBooleanKeys indicates whether to allow boolean type keys or treat as value is missing.
 	// This type of keys are mostly used in my.cnf.
 	AllowBooleanKeys bool
@@ -145,6 +94,11 @@ type LoadOptions struct {
 	// Relevant quote:  Values can also span multiple lines, as long as they are indented deeper
 	// than the first line of the value.
 	AllowPythonMultilineValues bool
+	// SpaceBeforeInlineComment indicates whether to allow comment symbols (\# and \;) inside value.
+	// Docs: https://docs.python.org/2/library/configparser.html
+	// Quote: Comments may appear on their own in an otherwise empty line, or may be entered in lines holding values or section names.
+	// In the latter case, they need to be preceded by a whitespace character to be recognized as a comment.
+	SpaceBeforeInlineComment bool
 	// UnescapeValueDoubleQuotes indicates whether to unescape double quotes inside value to regular format
 	// when value is surrounded by double quotes, e.g. key="a \"value\"" => key=a "value"
 	UnescapeValueDoubleQuotes bool
@@ -152,11 +106,31 @@ type LoadOptions struct {
 	// when value is NOT surrounded by any quotes.
 	// Note: UNSTABLE, behavior might change to only unescape inside double quotes but may noy necessary at all.
 	UnescapeValueCommentSymbols bool
-	// Some INI formats allow group blocks that store a block of raw content that doesn't otherwise
+	// UnparseableSections stores a list of blocks that are allowed with raw content which do not otherwise
 	// conform to key/value pairs. Specify the names of those blocks here.
 	UnparseableSections []string
+	// KeyValueDelimiters is the sequence of delimiters that are used to separate key and value. By default, it is "=:".
+	KeyValueDelimiters string
+	// KeyValueDelimiterOnWrite is the delimiter that are used to separate key and value output. By default, it is "=".
+	KeyValueDelimiterOnWrite string
+	// ChildSectionDelimiter is the delimiter that is used to separate child sections. By default, it is ".".
+	ChildSectionDelimiter string
+	// PreserveSurroundedQuote indicates whether to preserve surrounded quote (single and double quotes).
+	PreserveSurroundedQuote bool
+	// DebugFunc is called to collect debug information (currently only useful to debug parsing Python-style multiline values).
+	DebugFunc DebugFunc
+	// ReaderBufferSize is the buffer size of the reader in bytes.
+	ReaderBufferSize int
+	// AllowNonUniqueSections indicates whether to allow sections with the same name multiple times.
+	AllowNonUniqueSections bool
+	// AllowDuplicateShadowValues indicates whether values for shadowed keys should be deduplicated.
+	AllowDuplicateShadowValues bool
 }
 
+// DebugFunc is the type of function called to log parse events.
+type DebugFunc func(message string)
+
+// LoadSources allows caller to apply customized options for loading from data source(s).
 func LoadSources(opts LoadOptions, source interface{}, others ...interface{}) (_ *File, err error) {
 	sources := make([]dataSource, len(others)+1)
 	sources[0], err = parseDataSource(source)
@@ -195,7 +169,7 @@ func InsensitiveLoad(source interface{}, others ...interface{}) (*File, error) {
 	return LoadSources(LoadOptions{Insensitive: true}, source, others...)
 }
 
-// InsensitiveLoad has exactly same functionality as Load function
+// ShadowLoad has exactly same functionality as Load function
 // except it allows have shadow keys.
 func ShadowLoad(source interface{}, others ...interface{}) (*File, error) {
 	return LoadSources(LoadOptions{AllowShadows: true}, source, others...)

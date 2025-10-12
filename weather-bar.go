@@ -16,7 +16,7 @@ import (
 	"github.com/jasonwinn/noaa"
 )
 
-const freeGeoIPURL = "https://freegeoip.net/json/"
+const freeGeoIPURL = "https://freegeoip.app/json/"
 
 // By default, we poll our geolocation once a day.  If the computer is put into sleep
 // mode and awaken, the geolocation will be re-polled automatically regardless of this
